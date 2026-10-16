@@ -2,9 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # `integration/staging` is where contribution PRs are integrated before
+    # `main`; without it here, CI would never run on those pull requests.
+    branches: [main, integration/staging]
   pull_request:
-    branches: [main]
+    branches: [main, integration/staging]
 
 jobs:
   contracts:
@@ -63,11 +65,31 @@ jobs:
       - run: npm run build
 
   backend:
-    name: Backend – typecheck & test
+    name: Backend – typecheck, migrations & test
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
+    # `backend/Dockerfile` runs `prisma migrate deploy` when the container
+    # starts, so a broken or drifted migration is otherwise only discovered in
+    # production. A real Postgres lets us apply the committed migrations and
+    # prove they reproduce `schema.prisma` exactly.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: freelance_stellar
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d freelance_stellar"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/freelance_stellar
     steps:
       - uses: actions/checkout@v4
 
@@ -79,6 +101,23 @@ jobs:
 
       - run: npm ci
       - run: npx prisma generate
+
+      # Apply every committed migration to an empty database. A migration that
+      # does not run (broken SQL, a bad ordering) fails the build here, exactly
+      # as it would fail the container's start-up command (#53).
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      # `--exit-code` makes `migrate diff` exit non-zero when the migration
+      # history and `schema.prisma` disagree, so editing the schema without a
+      # matching migration fails instead of reaching production as drift.
+      - name: Migrations reproduce the schema (drift check)
+        run: >-
+          npx prisma migrate diff
+          --from-url "$DATABASE_URL"
+          --to-schema-datamodel prisma/schema.prisma
+          --exit-code
+
       - run: npx tsc --noEmit
       - run: npm test
 

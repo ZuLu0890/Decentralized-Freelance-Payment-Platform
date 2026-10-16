@@ -62,6 +62,15 @@ It should print `status: "Completed"`, milestones with matching
 `released_amount`, a `Rated` event carrying `count`/`total_score`, and a
 weighted `get_aggregate` result.
 
+Also exercise the frozen-escrow path (steps 1–4 of [`DISPUTES.md`](./DISPUTES.md)).
+This one asserts its outcome — the escrow ends `Completed`, the dispute
+`Resolved` — so a regression in `open_dispute`/`raise`/`approve`/`arbitrate`
+fails the run instead of only printing something different:
+
+```bash
+scripts/demo_dispute_testnet.sh
+```
+
 **Contract ids change on every deploy.** Whatever is in `deployments/testnet.json`
 is the only correct set; the ids in `README.md` and `docs/TESTNET.md` are a
 snapshot for readers and must be updated when you redeploy.
@@ -87,6 +96,18 @@ inlines them at build time, so **changing any of them requires a redeploy**:
 
 Without `VITE_API_URL` the app falls back to `http://localhost:3000`
 (`frontend/src/lib/api.ts`) and the job list will fail for every visitor.
+
+The same set applies to the **containerised** frontend. `frontend/Dockerfile`
+declares every one of these as a build arg — `VITE_API_URL` and
+`VITE_XLM_CONTRACT_ID` included — and `docker-compose.yml` forwards each from
+the shell, so a container can be pointed at a non-local API and can offer XLM:
+
+```bash
+VITE_API_URL=https://api.example.com docker compose up --build
+```
+
+Vite inlines these at build time, so changing one requires rebuilding the image
+(`docker compose build frontend`), exactly as on Vercel.
 
 ## 3. Backend → container host
 

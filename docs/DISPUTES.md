@@ -138,6 +138,25 @@ Off-chain checks here are early rejections, not the security boundary: the
 escrow and dispute contracts re-check every precondition on-chain (the escrow is
 `Disputed`, the raiser is a party, the panel approved that exact split).
 
+## Reproducing the flow on testnet
+
+[`../scripts/demo_dispute_testnet.sh`](../scripts/demo_dispute_testnet.sh) walks
+steps 1–4 above against the deployed testnet contracts — `open_dispute` →
+`raise` → `approve` → `arbitrate` — and **asserts** the outcome: the escrow ends
+`Completed` and the dispute `Resolved`, or the script exits non-zero. It is the
+dispute counterpart to [`../scripts/demo_testnet.sh`](../scripts/demo_testnet.sh),
+which only covers the happy path (`create → fund → release → rate → aggregate`).
+
+```bash
+scripts/deploy_testnet.sh          # once, to deploy + initialize
+scripts/demo_dispute_testnet.sh    # freeze, raise, approve, arbitrate
+```
+
+`scripts/deploy_testnet.sh` initializes the panel as `[admin]` with
+`threshold = 1`, so the demo approves the split once. For an M-of-N panel every
+member calls `dispute.approve` with the **same** shares before anyone calls
+`arbitrate`; `arbitrate` only counts approvals that match the split exactly.
+
 ## Residual risks
 
 - The panel is a **trusted set**, not sybil-resistant. Their selection is an

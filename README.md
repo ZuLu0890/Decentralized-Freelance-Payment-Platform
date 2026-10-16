@@ -220,7 +220,7 @@ and selecting one by hand is how funds reach the wrong account.
 | Wallet | Freighter browser extension (SEP-53 message signing) |
 | Backend | Express 4 + Prisma 5 + PostgreSQL, Zod validation, JWT (`jose`), Helmet, rate limiting |
 | Chain access | `@stellar/stellar-sdk` 12 (Soroban RPC + Horizon) |
-| CI | GitHub Actions — contracts (fmt, clippy, test, wasm build), frontend, backend, dependency vulnerability scan (advisory; `npm audit` + `cargo audit`) |
+| CI | GitHub Actions — contracts (fmt, clippy, test, wasm build), frontend, backend (typecheck, tests, and Prisma migrations applied against a Postgres service), dependency vulnerability scan (advisory; `npm audit` + `cargo audit`) |
 
 ## Repository layout
 
@@ -256,11 +256,21 @@ docker compose up --build
 | Backend | <http://localhost:3000> (`GET /health`) |
 | PostgreSQL | `localhost:5432` |
 
-Pass contract ids through the environment to bake them into the frontend image:
+Pass any `VITE_*` value through the environment to bake it into the frontend
+image — compose forwards the whole set (`VITE_NETWORK`, `VITE_API_URL`,
+`VITE_ESCROW_CONTRACT_ID`, `VITE_DISPUTE_CONTRACT_ID`,
+`VITE_REPUTATION_CONTRACT_ID`, `VITE_USDC_CONTRACT_ID`, `VITE_XLM_CONTRACT_ID`)
+as build args, so a containerised build is not stuck on `http://localhost:3000`:
 
 ```bash
-VITE_ESCROW_CONTRACT_ID=C... docker compose up --build
+VITE_API_URL=https://api.example.com \
+VITE_ESCROW_CONTRACT_ID=C... \
+VITE_XLM_CONTRACT_ID=CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC \
+  docker compose up --build
 ```
+
+These are the same variables as the [Frontend configuration](#frontend-frontendenv)
+table below; Vite inlines them, so changing one means rebuilding the image.
 
 ### Manual
 
@@ -284,8 +294,9 @@ Deploy and exercise the contracts on testnet:
 
 ```bash
 stellar keys generate deployer --network testnet --fund
-scripts/deploy_testnet.sh     # builds, deploys, initializes, records ids
-scripts/demo_testnet.sh       # create → fund → release → rate → aggregate
+scripts/deploy_testnet.sh         # builds, deploys, initializes, records ids
+scripts/demo_testnet.sh           # create → fund → release → rate → aggregate
+scripts/demo_dispute_testnet.sh   # open_dispute → raise → approve → arbitrate
 ```
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for conventions and the manual setup in full.
@@ -351,7 +362,9 @@ npm test
 npm run build
 ```
 
-CI runs all three on every push and pull request to `main`
+CI runs all three on every push and pull request to `main` and
+`integration/staging`, and applies the backend's Prisma migrations against a
+Postgres service so a broken or drifted migration fails the build
 ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)).
 
 ## Deployment

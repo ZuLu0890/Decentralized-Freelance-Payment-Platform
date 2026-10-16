@@ -46,6 +46,13 @@ The demo runs `create → fund → release all milestones → status Completed �
 submit rating → get_aggregate`, printing the transaction results. It uses the
 testnet XLM SAC by default; pass `TOKEN_CONTRACT_ID=<sac>` to use another asset.
 
+The dispute path (`open_dispute → raise → approve → arbitrate`) has its own
+demo, which asserts the escrow ends `Completed` and the dispute `Resolved`:
+
+```bash
+scripts/demo_dispute_testnet.sh
+```
+
 ## A note on builds (Soroban SDK v28+)
 
 Soroban SDK v28+ requires:

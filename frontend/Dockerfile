@@ -4,17 +4,28 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 
-# Contract addresses are baked in at build time (Vite inlines VITE_* vars).
+# Vite resolves `import.meta.env.VITE_*` at build time, so every value the app
+# reads has to be a build arg: the only way to point a running container at a
+# different backend or contract set is to rebuild the image with it.
+#
+# VITE_API_URL (frontend/src/lib/api.ts) and VITE_XLM_CONTRACT_ID
+# (frontend/src/lib/assets.ts) are as load-bearing as the contract ids: without
+# them a containerised build falls back to http://localhost:3000 and cannot pay
+# in XLM. docker-compose.yml forwards all of them from the shell.
 ARG VITE_NETWORK=testnet
+ARG VITE_API_URL=
 ARG VITE_ESCROW_CONTRACT_ID=
 ARG VITE_DISPUTE_CONTRACT_ID=
 ARG VITE_REPUTATION_CONTRACT_ID=
 ARG VITE_USDC_CONTRACT_ID=
+ARG VITE_XLM_CONTRACT_ID=
 ENV VITE_NETWORK=$VITE_NETWORK \
+    VITE_API_URL=$VITE_API_URL \
     VITE_ESCROW_CONTRACT_ID=$VITE_ESCROW_CONTRACT_ID \
     VITE_DISPUTE_CONTRACT_ID=$VITE_DISPUTE_CONTRACT_ID \
     VITE_REPUTATION_CONTRACT_ID=$VITE_REPUTATION_CONTRACT_ID \
-    VITE_USDC_CONTRACT_ID=$VITE_USDC_CONTRACT_ID
+    VITE_USDC_CONTRACT_ID=$VITE_USDC_CONTRACT_ID \
+    VITE_XLM_CONTRACT_ID=$VITE_XLM_CONTRACT_ID
 
 RUN npm run build
 

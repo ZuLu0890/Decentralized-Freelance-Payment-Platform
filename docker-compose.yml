@@ -5,11 +5,13 @@
 # Backend:  http://localhost:3000  (GET /health)
 # Frontend: http://localhost:5173
 #
-# Contract addresses are optional here; set them in the shell or in a root
-# `.env` file to bake them into the frontend image, e.g.:
-#   VITE_ESCROW_CONTRACT_ID=C... docker compose up --build
+# Every VITE_* value the frontend reads is optional here; set it in the shell or
+# in a root `.env` file to bake it into the frontend image at build time, e.g.:
+#   VITE_ESCROW_CONTRACT_ID=C... VITE_API_URL=https://api.example.com \
+#     docker compose up --build
 #
-# Testnet values live in deployments/testnet.json.
+# The full set is documented in README.md → Configuration → Frontend; testnet
+# values live in deployments/testnet.json.
 #
 # Both service containers run as non-root (issue #112): the backend drops to
 # the image's `node` user (uid 1000), the frontend uses nginx-unprivileged
@@ -66,10 +68,15 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_NETWORK: ${VITE_NETWORK:-testnet}
+        # Point the containerised app at a non-local API (defaults to
+        # http://localhost:3000 inside the bundle otherwise).
+        VITE_API_URL: ${VITE_API_URL:-}
         VITE_ESCROW_CONTRACT_ID: ${VITE_ESCROW_CONTRACT_ID:-}
         VITE_DISPUTE_CONTRACT_ID: ${VITE_DISPUTE_CONTRACT_ID:-}
         VITE_REPUTATION_CONTRACT_ID: ${VITE_REPUTATION_CONTRACT_ID:-}
         VITE_USDC_CONTRACT_ID: ${VITE_USDC_CONTRACT_ID:-}
+        # Enables the XLM payment option in the asset picker.
+        VITE_XLM_CONTRACT_ID: ${VITE_XLM_CONTRACT_ID:-}
     restart: unless-stopped
     depends_on:
       - backend

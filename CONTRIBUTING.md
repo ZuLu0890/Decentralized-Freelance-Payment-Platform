@@ -221,6 +221,18 @@ That is exactly what CI runs. The test steps are not optional: the frontend
 suite no longer passes `--passWithNoTests`, so a broken or emptied suite fails
 the build instead of reporting success on nothing.
 
+With a Postgres reachable at `DATABASE_URL` (CI starts one as a service), also
+confirm the committed migrations still apply and reproduce `schema.prisma` — the
+same two steps the backend CI job runs, and the ones `backend/Dockerfile` runs
+at container start:
+
+```bash
+cd backend
+npx prisma migrate deploy
+npx prisma migrate diff --from-url "$DATABASE_URL" \
+  --to-schema-datamodel prisma/schema.prisma --exit-code
+```
+
 ---
 
 ## Conventions
@@ -248,7 +260,8 @@ the build instead of reporting success on nothing.
   `docs/short-description`.
 - Small, focused commits with imperative messages
   (`feat(escrow): reject zero-amount milestones`).
-- Open a PR against `main`; fill in the PR template and link the issue.
+- Open a PR against `integration/staging` (the integration branch that is
+  promoted to `main`); fill in the PR template and link the issue.
 - CI must be green before review.
 
 ---
